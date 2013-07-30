@@ -62,6 +62,7 @@ namespace ILRepacking
                 allowedDuplicateTypes[typeName] = typeName;
             }
         }
+
         public bool AllowDuplicateResources { get; set; }
         public bool AllowMultipleAssemblyLevelAttributes { get; set; }
         public bool AllowWildCards { get; set; }
@@ -258,6 +259,7 @@ namespace ILRepacking
                 Usage();
                 Exit(2);
             }
+
             AllowDuplicateResources = cmd.Modifier("allowduplicateresources");
             foreach (string dupType in cmd.Options("allowdup"))
                 AllowDuplicateType(dupType);
@@ -724,6 +726,8 @@ namespace ILRepacking
                 }
             }
 
+          
+
             INFO("Writing output assembly to disk");
             var parameters = new WriterParameters();
             if ((snkp != null) && !DelaySign)
@@ -762,6 +766,7 @@ namespace ILRepacking
             if (failed)
                 throw new Exception("Merging failed, see above errors");
         }
+
 
         private ResourceDirectory MergeWin32Resources(ResourceDirectory primary, IEnumerable<ResourceDirectory> resources)
         {
@@ -924,14 +929,17 @@ namespace ILRepacking
             foreach (var z in MergedAssemblies.SelectMany(x => x.Modules).SelectMany(x => x.AssemblyReferences))
             {
                 string name = z.Name;
-                if (!MergedAssemblies.Any(y => y.Name.Name == name) && TargetAssemblyDefinition.Name.Name != name && !TargetAssemblyMainModule.AssemblyReferences.Any(y => y.Name == name))
+                if (MergedAssemblies.All(y => y.Name.Name != name) && TargetAssemblyDefinition.Name.Name != name && TargetAssemblyMainModule.AssemblyReferences.All(y => y.Name != name))
                 {
-                    // TODO: fix .NET runtime references?
-                    // - to target a specific runtime version or
-                    // - to target a single version if merged assemblies target different versions
-                    VERBOSE("- add reference " + z);
-                    AssemblyNameReference fixedRef = platformFixer.FixPlatformVersion(z);
-                    TargetAssemblyMainModule.AssemblyReferences.Add(fixedRef);
+                    if(BitConverter.ToString(z.PublicKeyToken).ToLower().Replace("-", string.Empty) != "7cec85d7bea7798e")
+                    {
+                        // TODO: fix .NET runtime references?
+                        // - to target a specific runtime version or
+                        // - to target a single version if merged assemblies target different versions
+                        VERBOSE("- add reference " + z);
+                        AssemblyNameReference fixedRef = platformFixer.FixPlatformVersion(z);
+                        TargetAssemblyMainModule.AssemblyReferences.Add(fixedRef);
+                    }
                 }
             }
 
